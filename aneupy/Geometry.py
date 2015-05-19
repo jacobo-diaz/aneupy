@@ -46,7 +46,6 @@ class Section():
     def __init__(self, name, origin, OX_LCS, OY_LCS):
         self.name = name
         self.origin = list(origin)
-        self.bases = []
 
         try:
             self.OX_LCS = list(OX_LCS)
@@ -101,22 +100,23 @@ class Section():
     def _transform_base_to_LCS(self, base):
         """ Transforms a base to the LCS"""
 
-        geompy.Rotate(base, self.EulerAxisVector, -self.EulerAngle)
-        geompy.TranslateDXDYDZ(base, *tuple(self.origin))
+        if self.EulerAxisVector:
+            geompy.Rotate(base, self.EulerAxisVector, -self.EulerAngle)
+            geompy.TranslateDXDYDZ(base, *tuple(self.origin))
 
     def _transform_bases_to_LCS(self):
         """ Transforms all bases to the LCS"""
 
-        for base in self.bases:
-            geompy.Rotate(base, self.EulerAxisVector, -self.EulerAngle)
-            geompy.TranslateDXDYDZ(base, *tuple(self.origin))
+        if self.EulerAxisVector:
+            geompy.Rotate(self.base, self.EulerAxisVector, -self.EulerAngle)
+            geompy.TranslateDXDYDZ(self.base, *tuple(self.origin))
 
     def _transform_bases_to_GCS(self):
         """ Transforms all bases to the GCS"""
 
-        for base in self.bases:
-            geompy.TranslateDXDYDZ(base, *tuple([-i for i in self.origin]))
-            geompy.Rotate(base, self.EulerAxisVector, self.EulerAngle)
+        if self.EulerAxisVector:
+            geompy.TranslateDXDYDZ(self.base, *tuple([-i for i in self.origin]))
+            geompy.Rotate(self.base, self.EulerAxisVector, self.EulerAngle)
 
     def rotateX(self, angle):
         """Rotate the section around an axis parallel to global X
@@ -152,10 +152,10 @@ class Section():
         self._transform_bases_to_LCS()
 
     def add_circle(self, radius):
-        base = geompy.MakeCircleR(radius)
-        self._transform_base_to_LCS(base)
-        self.bases.append(base)
-        geompy.addToStudy(self.bases[-1], self.name + '_base_' + str(len(self.bases)))
+        self.base = geompy.MakeCircleR(radius)
+        self._transform_base_to_LCS(self.base)
+        self.bases.append(self.base)
+        geompy.addToStudy(self.base, self.name + '_base')
         salome.sg.updateObjBrowser(True)
 
 
@@ -163,3 +163,15 @@ class Shell():
 
     def __init__(self, name, sections):
         self.name, self.sections = name, sections
+
+        bases = []
+        locations = []
+
+        for section in sections:
+            bases.append(section.base)
+            locations.append(section.locations)
+
+        # Group bases (Cambiar para que solo haya una base por seccion)
+        # Group locations
+
+        # Añadir mas tipos de bases (pensar en un sketch para hacer un piano)
