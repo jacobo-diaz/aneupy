@@ -78,5 +78,5 @@ d.add_solid_from_shell(name='aneurysm_outer', shell='aneurysm_outer')
 d.add_solid_from_shell(name='aneurysm_inner', shell='aneurysm_inner')
 d.add_solid_from_cut(name='aneurysm_outer', solids=['aneurysm_outer', 'aneurysm_inner'])
 
-d.export_iges(solid='aneurysm_outer', file='/home/jdiaz/aneurysm_outer.iges')
-d.export_iges(solid='aneurysm_inner', file='/home/jdiaz/aneurysm_inner.iges')
+d.export_iges(solid='aneurysm_outer', file='aneurysm_outer.iges')
+d.export_iges(solid='aneurysm_inner', file='aneurysm_inner.iges')

@@ -56,3 +56,6 @@ target/
 # Abaqus
 *.rpy.*
 *.rpy
+*.iges
+*.jnl
+test.cae

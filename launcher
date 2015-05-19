@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+module load salome/7.5.1
+salome --shutdown-servers=1 -t aneurism_1_CAD.py
+
+module load abaqus/6.14.2
+abaqus cae noGUI=aneurism_1_FSI.py
