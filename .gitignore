@@ -57,5 +57,6 @@ target/
 *.rpy.*
 *.rpy
 *.iges
+*.sat
 *.jnl
 test.cae
