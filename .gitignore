@@ -53,11 +53,15 @@ docs/_build/
 # PyBuilder
 target/
 
+# Salome
+*.hdf
+*.sat
+*.iges
+*.cad
+
 # Abaqus
 *.rpy.*
 *.rpy
-*.iges
-*.sat
 *.jnl
 *.rec
 *.cae

@@ -1,6 +1,5 @@
-# import os
-# os.chdir(r"/home/jdiaz/Dropbox/code/aneupy")
-# execfile(r"/home/jdiaz/Dropbox/code/aneupy/test.py")
+# import os ; os.chdir(r"/home/jdiaz/Dropbox/code/aneupy") ; execfile(r"aneurysm_1_CAD.py")
+# import os ; os.chdir("/home/jdiaz/aneupy") ; execfile(r"aneurysm_1_CAD.py")
 
 # import aneupy
 
@@ -8,23 +7,6 @@ import Geometry
 aneupy = reload(Geometry)
 
 d = aneupy.Domain()
-
-d.add_section(name='s1', origin=[0., 0., 0.])
-d.add_section(name='s2', origin=[0., 0., 50.])
-d.add_section(name='s3', origin=[50., 0., 60.])
-d.add_section(name='s4', origin=[100., 0., 60.])
-d.add_section(name='s5', origin=[120., 30., 80.])
-
-d.sections['s1'].add_circle(radius=5.)
-d.sections['s2'].add_circle(radius=4.)
-d.sections['s3'].add_circle(radius=4.)
-d.sections['s3'].rotateY(angle=90.)
-d.sections['s4'].add_circle(radius=6.)
-d.sections['s4'].rotateY(angle=90.)
-d.sections['s5'].add_circle(radius=5.)
-d.sections['s5'].rotateX(angle=90.)
-
-d.add_shell(name='S1', sections=['s1', 's2', 's3', 's4', 's5'])
 
 d.add_section(name='a1', origin=[0., 0., 0.])
 d.add_section(name='a1a', origin=[0., 0., 10.])
@@ -46,10 +28,7 @@ d.sections['a4'].add_circle(radius=5.)
 d.sections['a5a'].add_circle(radius=5.)
 d.sections['a5'].add_circle(radius=5.)
 
-# d.add_shell(name='A1', sections=['a1', 'a1a', 'a2', 'a2a', 'a3', 'a4a', 'a4', 'a5a', 'a5'], minBSplineDegree=2, maxBSplineDegree=5, approximation=True)
-# d.add_shell(name='A1b', sections=['a1', 'a1a', 'a2', 'a2a', 'a3', 'a4a', 'a4', 'a5a', 'a5'], minBSplineDegree=2, maxBSplineDegree=20, approximation=True)
 d.add_shell(name='aneurysm_outer', sections=['a1', 'a1a', 'a2', 'a2a', 'a3', 'a4a', 'a4', 'a5a', 'a5'], minBSplineDegree=10, maxBSplineDegree=20, approximation=True)
-# d.add_shell(name='A1d', sections=['a1', 'a1a', 'a2', 'a2a', 'a3', 'a4a', 'a4', 'a5a', 'a5'], minBSplineDegree=10, maxBSplineDegree=20, approximation=False)
 
 d.add_section(name='b1', origin=[0., 0., 0.])
 d.add_section(name='b1a', origin=[0., 0., 10.])
@@ -74,9 +53,10 @@ d.sections['b5'].add_circle(radius=4.5)
 d.add_shell(name='aneurysm_inner', sections=['b1', 'b1a', 'b2', 'b2a', 'b3', 'b4a', 'b4', 'b5a', 'b5'], minBSplineDegree=10, maxBSplineDegree=20, approximation=True)
 
 d.add_solid_from_shell(name='aneurysm_outer', shell='aneurysm_outer')
+d.add_solid_from_shell(name='aneurysm_fluid', shell='aneurysm_inner')
+d.add_solid_from_cut(name='aneurysm_solid', solids=['aneurysm_outer', 'aneurysm_fluid'])
 
-d.add_solid_from_shell(name='aneurysm_inner', shell='aneurysm_inner')
-d.add_solid_from_cut(name='aneurysm_outer', solids=['aneurysm_outer', 'aneurysm_inner'])
+d.export_iges(solid='aneurysm_solid', file='aneurysm_solid.iges')
+d.export_iges(solid='aneurysm_fluid', file='aneurysm_fluid.iges')
 
-d.export_iges(solid='aneurysm_outer', file='aneurysm_outer.iges')
-d.export_iges(solid='aneurysm_inner', file='aneurysm_inner.iges')
+d.save(file='aneurysm_1')

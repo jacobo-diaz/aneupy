@@ -1,29 +1,38 @@
+import os
+import math
+import cPickle as pickle
+
 import salome
 import GEOM
 from salome.geom import geomBuilder
-import math
-
-salome.salome_init()
-geompy = geomBuilder.New(salome.myStudy)
-
-geompy.addToStudyAuto(0)
 
 
 class Domain():
 
     def __init__(self, **kwargs):
+
         self.sections = {}
         self.shells = {}
         self.solids = {}
+        self.name = 'aa'
 
-        O = geompy.MakeVertex(0, 0, 0)
-        OX = geompy.MakeVectorDXDYDZ(1, 0, 0)
-        OY = geompy.MakeVectorDXDYDZ(0, 1, 0)
-        OZ = geompy.MakeVectorDXDYDZ(0, 0, 1)
+        if salome.myStudyManager.GetOpenStudies():
+            study = salome.myStudyManager.GetStudyByName(salome.myStudyManager.GetOpenStudies()[0])
+            salome.myStudyManager.Close(study)
 
-    def add_section(self, name, origin, OX_LCS=None, OY_LCS=None):
+        self.study = salome.myStudyManager.NewStudy('study')
 
-        self.sections[name] = Section(name, origin, OX_LCS, OY_LCS)
+        self.geompy = geomBuilder.New(self.study)
+        self.geompy.addToStudyAuto(0)
+
+        O = self.geompy.MakeVertex(0, 0, 0)
+        OX = self.geompy.MakeVectorDXDYDZ(1, 0, 0)
+        OY = self.geompy.MakeVectorDXDYDZ(0, 1, 0)
+        OZ = self.geompy.MakeVectorDXDYDZ(0, 0, 1)
+
+    def add_section(self, name, **kwargs):
+
+        self.sections[name] = Section(name, **kwargs)
 
     def add_shell(self, name, sections, **kwargs):
 
@@ -33,19 +42,37 @@ class Domain():
 
         self.shells[name] = Shell(name, sections_list, **kwargs)
 
-    def add_solid_from_shell(self, name, shell):
+    def add_solid_from_shell(self, name, shell, **kwargs):
 
-        solid = geompy.MakeSolid([self.shells[shell].shell])
-        self.solids[name] = Solid(name, solid)
+        solid = self.geompy.MakeSolid([self.shells[shell].shell])
+        self.solids[name] = Solid(name, solid, **kwargs)
 
-    def add_solid_from_cut(self, name, solids):
+    def add_solid_from_cut(self, name, solids, **kwargs):
 
-        solid = geompy.MakeCut(self.solids[solids[0]].solid, self.solids[solids[1]].solid, checkSelfInte=True)
-        self.solids[name] = Solid(name, solid)
+        solid = self.geompy.MakeCut(self.solids[solids[0]].solid, self.solids[solids[1]].solid, checkSelfInte=True)
+        self.solids[name] = Solid(name, solid, **kwargs)
 
     def export_iges(self, solid, file):
 
-        geompy.ExportIGES(self.solids[solid].solid, file, theVersion='5.3')
+        self.geompy.ExportIGES(self.solids[solid].solid, file, theVersion='5.3')
+
+    def save(self, file):
+
+        file_path = os.path.dirname(file)
+
+        # Save SALOME study
+        file_extension = '.hdf'
+        file_name = os.path.basename(file.rsplit(file_extension, 1)[0])
+
+        salome.myStudyManager.SaveAs(os.path.join(file_path, file_name + file_extension), self.study, False)
+
+        # Save Python object
+        file_extension = '.cad'
+        file_name = os.path.basename(file.rsplit(file_extension, 1)[0])
+
+        with open(os.path.join(file_path, file_name + file_extension), 'wb') as output:
+            # pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.name, output)
 
 
 class Section():
@@ -61,11 +88,18 @@ class Section():
 
     """
 
-    def __init__(self, name, origin, OX_LCS, OY_LCS):
+    def __init__(self, name, origin, OX_LCS=None, OY_LCS=None, folder=True):
         self.name = name
         self.origin = list(origin)
         self.bases = {}
-        self.folder = geompy.NewFolder(name)
+
+        self.study = salome.myStudyManager.GetStudyByName(salome.myStudyManager.GetOpenStudies()[0])
+        self.geompy = geomBuilder.New(self.study)
+
+        if folder:
+            self.folder = self.geompy.NewFolder('section_' + name)
+        else:
+            self.folder = None
 
         try:
             self.OX_LCS = list(OX_LCS)
@@ -78,28 +112,31 @@ class Section():
             self.OY_LCS = [0., 1., 0.]
 
         # Create a vertex in the origin of the LCS
-        self.location = geompy.MakeVertex(*tuple(self.origin))
-        geompy.addToStudy(self.location, self.name + '_origin')
-        geompy.PutToFolder(self.location, self.folder)
+        self.location = self.geompy.MakeVertex(*tuple(self.origin))
+        self.geompy.addToStudy(self.location, self.name + '_origin')
+        if self.folder:
+            self.geompy.PutToFolder(self.location, self.folder)
 
         # Create LCS for the section
-        self.LCS = geompy.MakeMarker(*tuple(self.origin + self.OX_LCS + self.OY_LCS))
+        self.LCS = self.geompy.MakeMarker(*tuple(self.origin + self.OX_LCS + self.OY_LCS))
         self._obtain_rotation_matrix_LCS()
-        geompy.addToStudy(self.LCS, self.name + '_LCS')
-        geompy.PutToFolder(self.LCS, self.folder)
+        self.geompy.addToStudy(self.LCS, self.name + '_LCS')
+        if self.folder:
+            self.geompy.PutToFolder(self.LCS, self.folder)
+
         salome.sg.updateObjBrowser(True)
 
     def _obtain_rotation_matrix_LCS(self):
         """ Obtains the rotation matrix R of the LCS and the
             Euler's angle and axis of the transformation"""
 
-        _temp = geompy.GetPosition(self.LCS)
+        _temp = self.geompy.GetPosition(self.LCS)
         rx = _temp[6:9]
         rz = _temp[3:6]
-        vx = geompy.MakeVectorDXDYDZ(*rx)
-        vz = geompy.MakeVectorDXDYDZ(*rz)
-        vy = geompy.CrossProduct(vz, vx)
-        ry = geompy.VectorCoordinates(vy)
+        vx = self.geompy.MakeVectorDXDYDZ(*rx)
+        vz = self.geompy.MakeVectorDXDYDZ(*rz)
+        vy = self.geompy.CrossProduct(vz, vx)
+        ry = self.geompy.VectorCoordinates(vy)
         R = [list(rx), list(ry), list(rz)]
 
         eangle = math.acos(0.5*(R[0][0]+R[1][1]+R[2][2]-1.))
@@ -108,7 +145,7 @@ class Section():
                      (R[0][2]-R[2][0])/(2.*math.sin(eangle)),
                      (R[1][0]-R[0][1])/(2.*math.sin(eangle)),
                      ]
-            eaxisv = geompy.MakeVectorDXDYDZ(*eaxis)
+            eaxisv = self.geompy.MakeVectorDXDYDZ(*eaxis)
         else:
             eaxis = [0, 0, 0]
             eaxisv = None
@@ -124,26 +161,26 @@ class Section():
 
         for base in self.bases.values():
             if self.EulerAxisVector:
-                geompy.Rotate(base, self.EulerAxisVector, -self.EulerAngle)
+                self.geompy.Rotate(base, self.EulerAxisVector, -self.EulerAngle)
 
-            geompy.TranslateDXDYDZ(base, *tuple(self.origin))
+            self.geompy.TranslateDXDYDZ(base, *tuple(self.origin))
 
     def _transform_bases_to_GCS(self):
         """ Transforms all bases to the GCS"""
 
         for base in self.bases.values():
-            geompy.TranslateDXDYDZ(base, *tuple([-i for i in self.origin]))
+            self.geompy.TranslateDXDYDZ(base, *tuple([-i for i in self.origin]))
 
             if self.EulerAxisVector:
-                geompy.Rotate(base, self.EulerAxisVector, self.EulerAngle)
+                self.geompy.Rotate(base, self.EulerAxisVector, self.EulerAngle)
 
     def rotateX(self, angle):
         """Rotate the section around an axis parallel to global X
         through the origin of the LCS"""
 
-        axis = geompy.MakeVectorDXDYDZ(1., 0, 0)
-        axis = geompy.TranslateDXDYDZ(axis, *tuple(self.origin))
-        geompy.Rotate(self.LCS, axis, angle*math.pi/180.)
+        axis = self.geompy.MakeVectorDXDYDZ(1., 0, 0)
+        axis = self.geompy.TranslateDXDYDZ(axis, *tuple(self.origin))
+        self.geompy.Rotate(self.LCS, axis, angle*math.pi/180.)
         self._transform_bases_to_GCS()
         self._obtain_rotation_matrix_LCS()
         self._transform_bases_to_LCS()
@@ -152,9 +189,9 @@ class Section():
         """Rotate the section around an axis parallel to global Y
         through the origin of the LCS"""
 
-        axis = geompy.MakeVectorDXDYDZ(0., 1., 0)
-        axis = geompy.TranslateDXDYDZ(axis, *tuple(self.origin))
-        geompy.Rotate(self.LCS, axis, angle*math.pi/180.)
+        axis = self.geompy.MakeVectorDXDYDZ(0., 1., 0)
+        axis = self.geompy.TranslateDXDYDZ(axis, *tuple(self.origin))
+        self.geompy.Rotate(self.LCS, axis, angle*math.pi/180.)
         self._transform_bases_to_GCS()
         self._obtain_rotation_matrix_LCS()
         self._transform_bases_to_LCS()
@@ -163,36 +200,44 @@ class Section():
         """Rotate the section around an axis parallel to global Z
         through the origin of the LCS"""
 
-        axis = geompy.MakeVectorDXDYDZ(0., 0., 1.)
-        axis = geompy.TranslateDXDYDZ(axis, *tuple(self.origin))
-        geompy.Rotate(self.LCS, axis, angle*math.pi/180.)
+        axis = self.geompy.MakeVectorDXDYDZ(0., 0., 1.)
+        axis = self.geompy.TranslateDXDYDZ(axis, *tuple(self.origin))
+        self.geompy.Rotate(self.LCS, axis, angle*math.pi/180.)
         self._transform_bases_to_GCS()
         self._obtain_rotation_matrix_LCS()
         self._transform_bases_to_LCS()
 
     def add_circle(self, radius):
-        self.bases['edge'] = geompy.MakeCircleR(radius)
-        self.bases['face'] = geompy.MakeFaceWires([self.bases['edge']], isPlanarWanted=True)
-        self.bases['shell'] = geompy.MakeShell([self.bases['face']])
+        self.bases['edge'] = self.geompy.MakeCircleR(radius)
+        self.bases['face'] = self.geompy.MakeFaceWires([self.bases['edge']], isPlanarWanted=True)
+        self.bases['shell'] = self.geompy.MakeShell([self.bases['face']])
 
         self._transform_bases_to_LCS()
 
         for key, base in self.bases.items():
-            geompy.addToStudy(base, self.name + '_base_' + key)
-            geompy.PutToFolder(base, self.folder)
+            self.geompy.addToStudy(base, self.name + '_base_' + key)
+            if self.folder:
+                self.geompy.PutToFolder(base, self.folder)
 
         salome.sg.updateObjBrowser(True)
 
 
 class Shell():
 
-    def __init__(self, name, sections, closed=True, minBSplineDegree=2, maxBSplineDegree=5, approximation=True):
+    def __init__(self, name, sections, folder=False, closed=True, minBSplineDegree=2, maxBSplineDegree=5, approximation=True):
         self.name, self.sections = name, sections
-        self.folder = geompy.NewFolder(self.name)
 
         self.edges = []
         self.shells = []
         self.locations = []
+
+        self.study = salome.myStudyManager.GetStudyByName(salome.myStudyManager.GetOpenStudies()[0])
+        self.geompy = geomBuilder.New(self.study)
+
+        if folder:
+            self.folder = self.geompy.NewFolder('shell_' + name)
+        else:
+            self.folder = None
 
         theMinDeg = minBSplineDegree
         theMaxDeg = maxBSplineDegree
@@ -209,31 +254,42 @@ class Shell():
             self.shells.append(section.bases['shell'])
             self.locations.append(section.location)
 
-        self.compound = geompy.MakeCompound(self.edges)
-        self.face = geompy.MakeFilling(self.compound, theMinDeg, theMaxDeg, theTol2D, theTol3D, theNbIter, theMethod, isApprox)
+        self.compound = self.geompy.MakeCompound(self.edges)
+        self.face = self.geompy.MakeFilling(self.compound, theMinDeg, theMaxDeg, theTol2D, theTol3D, theNbIter, theMethod, isApprox)
 
         if closed:
-            sewing = geompy.MakeSewing([self.face, self.sections[0].bases['shell'], self.sections[-1].bases['shell']], sewing_precision)
-            self.shell = geompy.MakeShell([sewing])
+            sewing = self.geompy.MakeSewing([self.face, self.sections[0].bases['shell'], self.sections[-1].bases['shell']], sewing_precision)
+            self.shell = self.geompy.MakeShell([sewing])
         else:
-            self.shell = geompy.MakeShell([self.face])
+            self.shell = self.geompy.MakeShell([self.face])
 
-        geompy.addToStudy(self.shell, self.name + '_shell')
-        geompy.addToStudy(self.compound, self.name + '_compound')
-        geompy.PutToFolder(self.shell, self.folder)
-        geompy.PutToFolder(self.compound, self.folder)
+        self.geompy.addToStudy(self.shell, self.name)
+        self.geompy.addToStudy(self.compound, self.name + '_sections')
+
+        if self.folder:
+            self.geompy.PutToFolder(self.shell, self.folder)
+            self.geompy.PutToFolder(self.compound, self.folder)
 
         salome.sg.updateObjBrowser(True)
 
 
 class Solid():
 
-    def __init__(self, name, solid):
+    def __init__(self, name, solid, folder=False):
         self.name = name
         self.solid = solid
-        self.folder = geompy.NewFolder(self.name)
 
-        geompy.addToStudy(self.solid, self.name + '_solid')
-        geompy.PutToFolder(self.solid, self.folder)
+        self.study = salome.myStudyManager.GetStudyByName(salome.myStudyManager.GetOpenStudies()[0])
+        self.geompy = geomBuilder.New(self.study)
+
+        if folder:
+            self.folder = self.geompy.NewFolder('solid_' + name)
+        else:
+            self.folder = None
+
+        self.geompy.addToStudy(self.solid, self.name)
+
+        if self.folder:
+            self.geompy.PutToFolder(self.solid, self.folder)
 
         salome.sg.updateObjBrowser(True)
