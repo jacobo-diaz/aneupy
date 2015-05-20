@@ -12,8 +12,8 @@ shift $((OPTIND-1))
 
 if [[ ! -e "$CAD_FILE" || $force_mode -eq 1 ]] ; then 
   module load salome/7.5.1
-  salome --shutdown-servers=1 -t aneurism_1_CAD.py
+  salome --shutdown-servers=1 -t aneurysm_1_CAD.py
 fi
 
 module load abaqus/6.14.2
-abaqus cae noGUI=aneurism_1_FSI.py
+abaqus cae noGUI=aneurysm_1_FSI.py
