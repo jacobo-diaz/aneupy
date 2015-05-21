@@ -1,1 +1,21 @@
-../launcher
+#!/usr/bin/env bash
+
+CAD_FILE="aneurysm_1_CAD.py"
+FSI_FILE="aneurysm_1_FSI.py"
+IGES_FILE="aneurysm_fluid.iges"
+
+while getopts 'f' OPTION ; do
+  case $OPTION in
+    f) force_mode=1 ;;
+  esac
+done
+
+shift $((OPTIND-1))
+
+if [[ ! -e "$IGES_FILE" || $force_mode -eq 1 ]] ; then 
+  module load salome/7.5.1
+  salome --shutdown-servers=1 -t "$CAD_FILE"
+fi
+
+module load abaqus/6.14.2
+abaqus cae noGUI="$FSI_FILE"
