@@ -1,10 +1,14 @@
-# import os ; os.chdir(r"/home/jdiaz/Dropbox/code/aneupy") ; execfile(r"aneurysm_1_CAD.py")
-# import os ; os.chdir("/home/jdiaz/aneupy") ; execfile(r"aneurysm_1_CAD.py")
-
-# import aneupy
+# Testing ---------------------------------------------------------------------
+# import os ; os.chdir(r"/home/jdiaz/Dropbox/code/aneupy/test") ; execfile(r"aneurysm_1_CAD.py")
+# import os ; os.chdir("/home/jdiaz/aneupy/test") ; execfile(r"aneurysm_1_CAD.py")
 
 import Geometry
 aneupy = reload(Geometry)
+# -----------------------------------------------------------------------------
+
+# Production ------------------------------------------------------------------
+# import aneupy
+# -----------------------------------------------------------------------------
 
 d = aneupy.Domain()
 
@@ -28,7 +32,8 @@ d.sections['a4'].add_circle(radius=5.)
 d.sections['a5a'].add_circle(radius=5.)
 d.sections['a5'].add_circle(radius=5.)
 
-d.add_shell(name='aneurysm_outer', sections=['a1', 'a1a', 'a2', 'a2a', 'a3', 'a4a', 'a4', 'a5a', 'a5'], minBSplineDegree=10, maxBSplineDegree=20, approximation=True)
+d.add_shell(name='aneurysm_outer', sections=['a1', 'a1a', 'a2', 'a2a', 'a3', 'a4a', 'a4', 'a5a', 'a5'],
+            minBSplineDegree=10, maxBSplineDegree=20, approximation=True)
 
 d.add_section(name='b1', origin=[0., 0., 0.])
 d.add_section(name='b1a', origin=[0., 0., 10.])
@@ -50,7 +55,8 @@ d.sections['b4'].add_circle(radius=4.5)
 d.sections['b5a'].add_circle(radius=4.5)
 d.sections['b5'].add_circle(radius=4.5)
 
-d.add_shell(name='aneurysm_inner', sections=['b1', 'b1a', 'b2', 'b2a', 'b3', 'b4a', 'b4', 'b5a', 'b5'], minBSplineDegree=10, maxBSplineDegree=20, approximation=True)
+d.add_shell(name='aneurysm_inner', sections=['b1', 'b1a', 'b2', 'b2a', 'b3', 'b4a', 'b4', 'b5a', 'b5'],
+            minBSplineDegree=10, maxBSplineDegree=20, approximation=True)
 
 d.add_solid_from_shell(name='aneurysm_outer', shell='aneurysm_outer')
 d.add_solid_from_shell(name='aneurysm_fluid', shell='aneurysm_inner')

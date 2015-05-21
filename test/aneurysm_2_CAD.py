@@ -1,11 +1,14 @@
-# import os
-# os.chdir(r"/home/jdiaz/Dropbox/code/aneupy")
-# execfile(r"/home/jdiaz/Dropbox/code/aneupy/test.py")
-
-# import aneupy
+# Testing ---------------------------------------------------------------------
+# import os ; os.chdir(r"/home/jdiaz/Dropbox/code/aneupy/test") ; execfile(r"aneurysm_1_CAD.py")
+# import os ; os.chdir("/home/jdiaz/aneupy/test") ; execfile(r"aneurysm_1_CAD.py")
 
 import Geometry
 aneupy = reload(Geometry)
+# -----------------------------------------------------------------------------
+
+# Production ------------------------------------------------------------------
+# import aneupy
+# -----------------------------------------------------------------------------
 
 d = aneupy.Domain()
 

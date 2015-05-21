@@ -1,7 +1,14 @@
-# import aneupy
+# Testing ---------------------------------------------------------------------
+# import os ; os.chdir(r"/home/jdiaz/Dropbox/code/aneupy/test") ; execfile(r"aneurysm_1_CAD.py")
+# import os ; os.chdir("/home/jdiaz/aneupy/test") ; execfile(r"aneurysm_1_CAD.py")
 
 import Abaqus
 aneupy = reload(Abaqus)
+# -----------------------------------------------------------------------------
+
+# Production ------------------------------------------------------------------
+# import aneupy
+# -----------------------------------------------------------------------------
 
 m = aneupy.Model('aneurysm', cfd=True)
 
