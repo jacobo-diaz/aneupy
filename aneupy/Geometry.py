@@ -1,13 +1,13 @@
 import os
 import math
-import cPickle as pickle
+import json
 
 import salome
 import GEOM
 from salome.geom import geomBuilder
 
 
-class Domain():
+class Domain(object):
 
     def __init__(self, **kwargs):
 
@@ -43,17 +43,17 @@ class Domain():
 
     def add_solid_from_shell(self, name, shell, **kwargs):
 
-        solid = self.geompy.MakeSolid([self.shells[shell].shell])
+        solid = self.geompy.MakeSolid([self.shells[shell].geom])
         self.solids[name] = Solid(name, solid, **kwargs)
 
     def add_solid_from_cut(self, name, solids, **kwargs):
 
-        solid = self.geompy.MakeCut(self.solids[solids[0]].solid, self.solids[solids[1]].solid, checkSelfInte=True)
+        solid = self.geompy.MakeCut(self.solids[solids[0]].geom, self.solids[solids[1]].geom, checkSelfInte=True)
         self.solids[name] = Solid(name, solid, **kwargs)
 
     def export_iges(self, solid, file):
 
-        self.geompy.ExportIGES(self.solids[solid].solid, file, theVersion='5.3')
+        self.geompy.ExportIGES(self.solids[solid].geom, file, theVersion='5.3')
 
     def save(self, file):
 
@@ -66,21 +66,52 @@ class Domain():
         salome.myStudyManager.SaveAs(os.path.join(file_path, file_name + file_extension), self.study, False)
 
         # Save Python dictionary with CAD information
-        self.cad = {}
-
-        # geompy.BasicProperties -> [theLength, theSurfArea, theVolume]
-        # geompy.Inertia  -> [I11,I12,I13, I21,I22,I23, I31,I32,I33, Ix,Iy,Iz]
-        # geompy.PointCoordinates(geompy.MakeCDG())  -> CDG
-
         file_extension = '.cad'
         file_name = os.path.basename(file.rsplit(file_extension, 1)[0])
 
-        with open(os.path.join(file_path, file_name + file_extension), 'wb') as output:
-            # pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
-            pickle.dump(self.name, output)
+        self._get_cad_info()
+
+        with open(os.path.join(file_path, file_name + file_extension), 'w') as output_file:
+            json.dump(self.info, output_file, indent=2, sort_keys=True)
+
+    def _get_cad_info(self):
+
+        self.info = {}
+        self.info['sections'] = {}
+        self.info['shells'] = {}
+        self.info['solids'] = {}
+
+        entities = {}
+        for d in (self.sections, self.shells, self.solids):
+            entities.update(d)
+
+        for name, entity in entities.items():
+            entity_type = type(entity).__name__.lower() + 's'
+
+            BasicProperties = self.geompy.BasicProperties(entity.geom)
+            Inertia = self.geompy.Inertia(entity.geom)
+            CDG = self.geompy.PointCoordinates(self.geompy.MakeCDG(entity.geom))
+
+            self.info[entity_type][name] = {}
+            self.info[entity_type][name]['Length'] = BasicProperties[0]
+            self.info[entity_type][name]['Area'] = BasicProperties[1]
+            self.info[entity_type][name]['Volume'] = BasicProperties[2]
+            self.info[entity_type][name]['I11'] = Inertia[0]
+            self.info[entity_type][name]['I12'] = Inertia[1]
+            self.info[entity_type][name]['I13'] = Inertia[2]
+            self.info[entity_type][name]['I21'] = Inertia[3]
+            self.info[entity_type][name]['I22'] = Inertia[4]
+            self.info[entity_type][name]['I23'] = Inertia[5]
+            self.info[entity_type][name]['I31'] = Inertia[6]
+            self.info[entity_type][name]['I32'] = Inertia[7]
+            self.info[entity_type][name]['I33'] = Inertia[8]
+            self.info[entity_type][name]['Ix'] = Inertia[9]
+            self.info[entity_type][name]['Iy'] = Inertia[10]
+            self.info[entity_type][name]['Iz'] = Inertia[11]
+            self.info[entity_type][name]['CDG'] = CDG
 
 
-class Section():
+class Section(object):
     """ Defines a cross section.
 
         Cross sections are defined in the XY plane and then are transformed to
@@ -216,6 +247,7 @@ class Section():
         self.bases['edge'] = self.geompy.MakeCircleR(radius)
         self.bases['face'] = self.geompy.MakeFaceWires([self.bases['edge']], isPlanarWanted=True)
         self.bases['shell'] = self.geompy.MakeShell([self.bases['face']])
+        self.geom = self.bases['face']
 
         self._transform_bases_to_LCS()
 
@@ -227,7 +259,7 @@ class Section():
         salome.sg.updateObjBrowser(True)
 
 
-class Shell():
+class Shell(object):
 
     def __init__(self, name, sections, folder=False, closed=True, minBSplineDegree=2, maxBSplineDegree=5, approximation=True):
         self.name, self.sections = name, sections
@@ -264,25 +296,25 @@ class Shell():
 
         if closed:
             sewing = self.geompy.MakeSewing([self.face, self.sections[0].bases['shell'], self.sections[-1].bases['shell']], sewing_precision)
-            self.shell = self.geompy.MakeShell([sewing])
+            self.geom = self.geompy.MakeShell([sewing])
         else:
-            self.shell = self.geompy.MakeShell([self.face])
+            self.geom = self.geompy.MakeShell([self.face])
 
-        self.geompy.addToStudy(self.shell, self.name)
+        self.geompy.addToStudy(self.geom, self.name)
         self.geompy.addToStudy(self.compound, self.name + '_sections')
 
         if self.folder:
-            self.geompy.PutToFolder(self.shell, self.folder)
+            self.geompy.PutToFolder(self.geom, self.folder)
             self.geompy.PutToFolder(self.compound, self.folder)
 
         salome.sg.updateObjBrowser(True)
 
 
-class Solid():
+class Solid(object):
 
     def __init__(self, name, solid, folder=False):
         self.name = name
-        self.solid = solid
+        self.geom = solid
 
         self.study = salome.myStudyManager.GetStudyByName(salome.myStudyManager.GetOpenStudies()[0])
         self.geompy = geomBuilder.New(self.study)
@@ -292,9 +324,9 @@ class Solid():
         else:
             self.folder = None
 
-        self.geompy.addToStudy(self.solid, self.name)
+        self.geompy.addToStudy(self.geom, self.name)
 
         if self.folder:
-            self.geompy.PutToFolder(self.solid, self.folder)
+            self.geompy.PutToFolder(self.geom, self.folder)
 
         salome.sg.updateObjBrowser(True)
