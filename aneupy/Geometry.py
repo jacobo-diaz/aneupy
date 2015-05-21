@@ -14,7 +14,6 @@ class Domain():
         self.sections = {}
         self.shells = {}
         self.solids = {}
-        self.name = 'aa'
 
         if salome.myStudyManager.GetOpenStudies():
             study = salome.myStudyManager.GetStudyByName(salome.myStudyManager.GetOpenStudies()[0])
@@ -66,7 +65,13 @@ class Domain():
 
         salome.myStudyManager.SaveAs(os.path.join(file_path, file_name + file_extension), self.study, False)
 
-        # Save Python object
+        # Save Python dictionary with CAD information
+        self.cad = {}
+
+        # geompy.BasicProperties -> [theLength, theSurfArea, theVolume]
+        # geompy.Inertia  -> [I11,I12,I13, I21,I22,I23, I31,I32,I33, Ix,Iy,Iz]
+        # geompy.PointCoordinates(geompy.MakeCDG())  -> CDG
+
         file_extension = '.cad'
         file_name = os.path.basename(file.rsplit(file_extension, 1)[0])
 
