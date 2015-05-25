@@ -82,16 +82,22 @@ class Model(object):
 
     def add_material(self, name, **kwargs):
         self.materials[name] = self.model.Material(name=name)
+
         self.density = kwargs.get('density', self.density)
 
         self.materials[name].Density(table=((1000.0, ), ))
         self.materials[name].Viscosity(table=((0.001,), ))
 
-        modelo.materials[i].Elastic(table=((materiales[i]['E'], materiales[i]['Nu']), ))
+        self.materials[name].Elastic(table=((materiales[i]['E'], materiales[i]['Nu']), ))
 
-        mdb.models['aneurysm_fluid'].materials['Material-2'].Hyperelastic(
+        self.materials[name].Hyperelastic(
             materialType=ISOTROPIC, testData=OFF, type=ARRUDA_BOYCE,
             volumetricResponse=VOLUMETRIC_DATA, table=((1.0, 2.0, 3.0), ))
+
+        self.materials[name].Conductivity(table=((11.0, ), ))
+        self.materials[name].Plastic(table=((2.0, 0.0), (3.0, 3.0)))
+        self.materials[name].Expansion(table=((333.0, ), ))
+
 
         mdb.models['aneurysm_fluid'].HomogeneousFluidSection(name='Section-1', material='Material-1')
         mdb.models['aneurysm_solid'].HomogeneousSolidSection(name='Section-1', material='Material-1', thickness=None)

@@ -45,6 +45,8 @@ f.add_step(name='fluid')
 f.create_load
 f.create_BC
 
+# Hacer el field and history output request
+
 # PRobar si cambiando las coordenadas del iges se cambia la posición en el assembly
 
 # 3. Optionally, ensure matching nodes at the interface regions.
