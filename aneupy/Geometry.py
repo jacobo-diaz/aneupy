@@ -1,3 +1,14 @@
+# =============================================================================
+#
+# Geometry.py
+#
+# Python module to generate solid models in SALOME
+#
+# Jacobo Diaz - jdiaz@udc.es
+# 2015
+#
+# =============================================================================
+
 import os
 import math
 import json
